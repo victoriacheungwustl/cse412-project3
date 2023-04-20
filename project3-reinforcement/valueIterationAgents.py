@@ -60,10 +60,19 @@ class ValueIterationAgent(ValueEstimationAgent):
         self.runValueIteration()
 
     def runValueIteration(self):
+        maxVal = -1
         # Write value iteration code here
-        "*** YOUR CODE HERE ***"
-
-
+        for iteration in range(self.iterations):
+            placeHolder = self.values
+            for state in self.mdp.getStates():
+                state = 0
+                for action in self.mdp.getPossibleActions(state):
+                    sum = 0
+                    for transition in self.mdp.getTransitionStatesAndProbs(state, action):
+                        print(transition)
+                        sum += transition[1] * (self.mdp.getReward(state, action, transition[0]) + self.discount * self.values[transition[0]])
+                    maxVal = max(maxVal, sum)
+      
     def getValue(self, state):
         """
           Return the value of the state (computed in __init__).
