@@ -161,6 +161,23 @@ class AsynchronousValueIterationAgent(ValueIterationAgent):
     def runValueIteration(self):
         "*** YOUR CODE HERE ***"
 
+        # Get the list of all states in the MDP
+        states_list = self.mdp.getStates()
+        num_states = len(states_list) #total number of states
+
+        # Loop through the specified number of iterations
+        for state_idx in range(self.iterations): 
+            #Select a state based on the current index of the iteration
+            state = states_list[state_idx % num_states] 
+
+            if not self.mdp.isTerminal(state): #if state is not terminal
+                 # Select an action to take in the current state
+                action = self.getAction(state)
+                qval = self.getQValue(state, action) #get the qval for that action at that state
+                #Update the value of the current state with the calculated qval
+                self.values[state] = qval
+
+
 class PrioritizedSweepingValueIterationAgent(AsynchronousValueIterationAgent):
     """
         * Please read learningAgents.py before reading this.*
@@ -180,4 +197,58 @@ class PrioritizedSweepingValueIterationAgent(AsynchronousValueIterationAgent):
 
     def runValueIteration(self):
         "*** YOUR CODE HERE ***"
+        
+        #Get list of predecessors of all states 
+        predecessors = {}  
+        for state in self.mdp.getStates():
+            if not self.mdp.isTerminal(state):
+                # For each non-terminal state, get all the possible actions and their resulting next states and probabilities
+                for action in self.mdp.getPossibleActions(state):
+                    for next_state, prob in self.mdp.getTransitionStatesAndProbs(state, action):
+                        # Add the current state as a predecessor to the next state
+                        predecessors.setdefault(next_state, set()).add(state)
+
+        
+        state_priority_queue = util.PriorityQueue()
+        for state in self.mdp.getStates():
+            if not self.mdp.isTerminal(state):
+                # For each non-terminal state, compute the difference between the current value and the maximum Q-value
+                qvalues = []
+                for action in self.mdp.getPossibleActions(state): 
+                    qval = self.getQValue(state, action)
+                    qvalues.append(qval)
+
+                difference = abs(self.values[state] - max(qvalues, default=0))
+                # Add the state and its priority (negative difference) to the priority queue
+                state_priority_queue.update(state, -difference)
+
+        
+        for _ in range(self.iterations):
+            if state_priority_queue.isEmpty():
+                break
+
+            # Pop the state with the highest priority (smallest negative difference)
+            current_state = state_priority_queue.pop()
+
+            if not self.mdp.isTerminal(current_state):
+                # Compute the value of the current state as the maximum Q-value among all possible actions
+                qvalues = []
+                for action in self.mdp.getPossibleActions(current_state):
+                    qval = self.getQValue(current_state, action)
+                    qvalues.append(qval)
+
+                self.values[current_state] = max(qvalues, default=0)
+
+                # Update the priority queue for all predecessors of the current state
+                for predecessor in predecessors.get(current_state, []):
+                    qvalues = []
+                    for action in self.mdp.getPossibleActions(predecessor): 
+                        qval = self.getQValue(predecessor, action)
+                        qvalues.append(qval)
+
+                    difference = abs(self.values[predecessor] - max(qvalues, default=0))
+                    # If the difference exceeds the threshold, update the priority of the predecessor in the priority queue
+                    if difference > self.theta:
+                        state_priority_queue.update(predecessor, -difference)
+
 
